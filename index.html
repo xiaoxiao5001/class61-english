@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>六一班英语任务完成情况统计系统</title>
+
+<!-- Firebase SDK (compat version, CDN) -->
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+
+<style>
+:root {
+  --primary: #4f46e5;
+  --primary-d: #4338ca;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --bg: #eef2ff;
+  --card: #ffffff;
+  --text: #1e293b;
+  --muted: #64748b;
+  --border: #e2e8f0;
+  --shadow: 0 4px 20px rgba(79,70,229,0.10);
+  --radius: 14px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;font-family:'PingFang SC','Microsoft YaHei',Arial,sans-serif;background:var(--bg);color:var(--text);}
+
+/* ─── TOP BAR ─── */
+.topbar{
+  background:linear-gradient(135deg,#4f46e5 0%,#7c3aed 100%);
+  color:#fff;height:54px;padding:0 14px;
+  display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:200;
+  box-shadow:0 2px 14px rgba(79,70,229,.3);
+}
+.topbar h1{font-size:16px;font-weight:800;letter-spacing:.5px;}
+.topbar-right{display:flex;align-items:center;gap:8px;}
+.sync-badge{
+  display:flex;align-items:center;gap:5px;
+  font-size:11px;background:rgba(255,255,255,.18);
+  border-radius:20px;padding:3px 9px;
+}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:#4ade80;}
+.sync-dot.off{background:#f87171;}
+.sync-dot.spin{animation:syncPulse 1.2s infinite;}
+@keyframes syncPulse{0%,100%{opacity:1;}50%{opacity:.3;}}
+#clockStr{font-size:11px;opacity:.8;}
+
+/* ─── TABS ─── */
+.tabs{
+  display:flex;background:#fff;border-bottom:2px solid var(--border);
+  overflow-x:auto;position:sticky;top:54px;z-index:100;
+}
+.tabs::-webkit-scrollbar{display:none;}
+.tab{
+  flex:none;padding:11px 16px;border:none;background:transparent;
+  font-size:13px;color:var(--muted);cursor:pointer;
+  border-bottom:3px solid transparent;margin-bottom:-2px;
+  white-space:nowrap;transition:all .18s;
+}
+.tab.on{color:var(--primary);border-bottom-color:var(--primary);font-weight:700;}
+
+/* ─── PAGES ─── */
+.page{display:none;padding:14px;animation:fadeIn .2s;}
+.page.on{display:block;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+
+/* ─── CARD ─── */
+.card{background:#fff;border-radius:var(--radius);padding:16px;margin-bottom:14px;box-shadow:var(--shadow);}
+.card-hd{font-size:15px;font-weight:700;color:var(--primary);margin-bottom:12px;display:flex;align-items:center;gap:6px;}
+
+/* ─── STATS ROW ─── */
+.stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:4px;}
+@media(min-width:520px){.stats-row{grid-template-columns:repeat(5,1fr);}}
+.stat-box{border-radius:12px;padding:12px 8px;text-align:center;color:#fff;}
+.stat-box.indigo{background:linear-gradient(135deg,#4f46e5,#7c3aed);}
+.stat-box.emerald{background:linear-gradient(135deg,#059669,#10b981);}
+.stat-box.amber{background:linear-gradient(135deg,#d97706,#f59e0b);}
+.stat-box.rose{background:linear-gradient(135deg,#be123c,#f43f5e);}
+.stat-box.sky{background:linear-gradient(135deg,#0369a1,#0ea5e9);}
+.stat-num{font-size:22px;font-weight:800;line-height:1.1;}
+.stat-lbl{font-size:11px;opacity:.85;margin-top:2px;}
+
+/* ─── PROGRESS BAR ─── */
+.prog-wrap{height:8px;border-radius:4px;background:#e2e8f0;overflow:hidden;}
+.prog-fill{height:100%;border-radius:4px;transition:width .5s;}
+
+/* ─── GROUP GRID ─── */
+.group-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;}
+@media(min-width:520px){.group-grid{grid-template-columns:repeat(3,1fr);}}
+.gc{
+  border-radius:12px;padding:13px 11px;cursor:pointer;
+  background:#f8fafc;border:2px solid transparent;
+  transition:all .2s;position:relative;
+}
+.gc:hover{border-color:var(--primary);background:#eef2ff;}
+.gc-name{font-weight:800;font-size:14px;margin-bottom:4px;}
+.gc-sub{font-size:11px;color:var(--muted);margin-bottom:8px;}
+.gc-pct{font-size:12px;font-weight:700;margin-top:4px;}
+
+/* ─── MEMBER LIST ─── */
+.member-list{display:flex;flex-direction:column;gap:9px;}
+.mi{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 13px;border-radius:10px;
+  background:#f8fafc;border:1.5px solid var(--border);
+  cursor:pointer;transition:all .18s;
+}
+.mi:hover{border-color:var(--primary);background:#eef2ff;}
+.avatar{
+  width:36px;height:36px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-weight:700;font-size:14px;color:#fff;flex-shrink:0;
+}
+.mi-info{flex:1;}
+.mi-name{font-weight:700;font-size:14px;}
+.mi-sub{font-size:11px;color:var(--muted);}
+.mi-pct{font-size:14px;font-weight:800;}
+
+/* ─── BADGE ─── */
+.badge{display:inline-block;padding:1px 7px;border-radius:12px;font-size:11px;font-weight:700;}
+.badge-leader{background:#fde68a;color:#78350f;}
+.badge-member{background:#e0e7ff;color:#3730a3;}
+.badge-done{background:#d1fae5;color:#065f46;}
+.badge-todo{background:#fee2e2;color:#991b1b;}
+
+/* ─── FORM ─── */
+.form-row{margin-bottom:12px;}
+.form-row label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px;}
+.form-row input,.form-row select,.form-row textarea{
+  width:100%;padding:9px 12px;
+  border:1.5px solid var(--border);border-radius:8px;
+  font-size:14px;color:var(--text);background:#f8fafc;
+  outline:none;transition:border .15s;
+}
+.form-row input:focus,.form-row select:focus,.form-row textarea:focus{border-color:var(--primary);}
+
+/* ─── BUTTON ─── */
+.btn{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:8px 16px;border-radius:8px;border:none;
+  cursor:pointer;font-size:14px;font-weight:700;transition:all .15s;
+}
+.btn-primary{background:var(--primary);color:#fff;}
+.btn-primary:hover{background:var(--primary-d);}
+.btn-success{background:var(--success);color:#fff;}
+.btn-danger{background:var(--danger);color:#fff;}
+.btn-outline{background:transparent;border:1.5px solid var(--primary);color:var(--primary);}
+.btn-sm{padding:5px 10px;font-size:12px;border-radius:6px;}
+
+/* ─── TABLE ─── */
+.tbl{width:100%;border-collapse:collapse;}
+.tbl th{background:#f1f5f9;padding:8px 9px;font-size:12px;text-align:left;color:var(--muted);border-bottom:1.5px solid var(--border);}
+.tbl td{padding:9px;font-size:13px;border-bottom:1px solid var(--border);vertical-align:middle;}
+.tbl tr:last-child td{border-bottom:none;}
+.tbl-wrap{overflow-x:auto;}
+
+/* ─── RANK LIST ─── */
+.rank-list{display:flex;flex-direction:column;gap:8px;}
+.ri{
+  display:flex;align-items:center;gap:11px;
+  padding:10px 13px;border-radius:10px;
+  background:#f8fafc;border:1.5px solid var(--border);
+}
+.rno{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex-shrink:0;}
+.rno-1{background:#fde68a;color:#78350f;}
+.rno-2{background:#e2e8f0;color:#475569;}
+.rno-3{background:#fed7aa;color:#9a3412;}
+.rno-n{background:#f1f5f9;color:var(--muted);}
+.ri-info{flex:1;}
+.ri-name{font-weight:700;font-size:14px;}
+.ri-sub{font-size:11px;color:var(--muted);}
+.ri-right{text-align:right;}
+.ri-pct{font-size:16px;font-weight:800;}
+.ri-bar{width:72px;height:5px;border-radius:3px;background:#e2e8f0;margin-top:3px;overflow:hidden;}
+.ri-bar-fill{height:100%;border-radius:3px;}
+
+/* ─── TASK CHECK ─── */
+.tci{
+  display:flex;align-items:center;gap:9px;
+  padding:10px 12px;border-radius:8px;
+  border:1.5px solid var(--border);cursor:pointer;
+  transition:all .15s;margin-bottom:7px;
+}
+.tci.done{border-color:var(--success);background:#f0fdf4;}
+.tci-box{
+  width:20px;height:20px;border-radius:5px;
+  border:2px solid var(--border);flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:700;transition:all .15s;
+}
+.tci.done .tci-box{background:var(--success);border-color:var(--success);color:#fff;}
+.tci-name{flex:1;font-size:13px;font-weight:500;}
+.tci-date{font-size:11px;color:var(--muted);}
+
+/* ─── MODAL ─── */
+.overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,.45);
+  z-index:500;display:none;align-items:center;justify-content:center;padding:14px;
+}
+.overlay.on{display:flex;}
+.modal{
+  background:#fff;border-radius:16px;padding:20px;
+  width:100%;max-width:460px;max-height:90vh;overflow-y:auto;
+  box-shadow:0 12px 48px rgba(0,0,0,.18);
+  animation:modalIn .2s;
+}
+@keyframes modalIn{from{transform:translateY(28px);opacity:0;}to{transform:none;opacity:1;}}
+.modal-hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
+.modal-title{font-size:16px;font-weight:800;color:var(--primary);}
+.modal-close{background:none;border:none;cursor:pointer;font-size:20px;color:var(--muted);}
+
+/* ─── BACK BTN ─── */
+.back-btn{
+  display:inline-flex;align-items:center;gap:4px;
+  color:var(--primary);font-size:14px;font-weight:700;
+  cursor:pointer;margin-bottom:12px;background:none;border:none;
+}
+
+/* ─── TOAST ─── */
+.toast{
+  position:fixed;bottom:72px;left:50%;transform:translateX(-50%);
+  background:#1e293b;color:#fff;padding:9px 20px;
+  border-radius:24px;font-size:14px;z-index:9999;
+  opacity:0;pointer-events:none;transition:opacity .25s;white-space:nowrap;
+}
+.toast.on{opacity:1;}
+
+/* ─── LOADING ─── */
+.loading{
+  position:fixed;inset:0;background:#fff;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  z-index:9999;transition:opacity .4s;
+}
+.loading.hide{opacity:0;pointer-events:none;}
+.spinner{
+  width:44px;height:44px;border:4px solid #e2e8f0;
+  border-top-color:var(--primary);border-radius:50%;
+  animation:spin .7s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg);}}
+.loading p{margin-top:14px;color:var(--muted);font-size:14px;}
+
+/* ─── EMPTY ─── */
+.empty{text-align:center;color:var(--muted);padding:24px;font-size:14px;}
+
+/* ─── SECTION HEAD ─── */
+.sec{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:12px 0 8px;}
+
+/* ─── GROUP OVERVIEW ROWS ─── */
+.go-row{display:flex;align-items:center;gap:8px;margin-bottom:11px;cursor:pointer;}
+.go-row:hover .go-name{color:var(--primary);}
+.go-name{font-size:13px;font-weight:600;width:62px;flex-shrink:0;}
+.go-bar{flex:1;}
+.go-pct{font-size:12px;font-weight:700;width:36px;text-align:right;flex-shrink:0;}
+</style>
+</head>
+<body>
+
+<!-- ──────────────── LOADING ──────────────── -->
+<div class="loading" id="loadEl">
+  <div class="spinner"></div>
+  <p id="loadMsg">正在连接实时数据库…</p>
+</div>
+
+<!-- ──────────────── TOP BAR ──────────────── -->
+<div class="topbar">
+  <h1>📚 六一班英语任务系统</h1>
+  <div class="topbar-right">
+    <div class="sync-badge">
+      <div class="sync-dot spin" id="syncDot"></div>
+      <span id="syncLabel">连接中</span>
+    </div>
+    <span id="clockStr"></span>
+  </div>
+</div>
+
+<!-- ──────────────── TABS ──────────────── -->
+<div class="tabs">
+  <button class="tab on" onclick="gotoTab('overview')">📊 总览</button>
+  <button class="tab" onclick="gotoTab('tasks')">📝 任务</button>
+  <button class="tab" onclick="gotoTab('groups')">👥 组别</button>
+  <button class="tab" onclick="gotoTab('rank')">🏆 排名</button>
+  <button class="tab" onclick="gotoTab('all')">📋 全班</button>
+</div>
+
+<!-- ──────────────── PAGE: OVERVIEW ──────────────── -->
+<div class="page on" id="pg-overview">
+  <div class="card">
+    <div class="card-hd">📊 实时统计</div>
+    <div class="stats-row" id="statsRow"></div>
+  </div>
+  <div class="card">
+    <div class="card-hd">📌 各组完成进度
+      <span style="font-size:11px;font-weight:400;color:var(--muted);margin-left:4px">（点击查看详情）</span>
+    </div>
+    <div id="groupOverview"></div>
+  </div>
+</div>
+
+<!-- ──────────────── PAGE: TASKS ──────────────── -->
+<div class="page" id="pg-tasks">
+  <div class="card">
+    <div class="card-hd">➕ 添加新任务</div>
+    <div class="form-row">
+      <label>任务名称 *</label>
+      <input id="tn" placeholder="例：Unit 5 词汇听写">
+    </div>
+    <div class="form-row">
+      <label>任务说明（选填）</label>
+      <textarea id="td" rows="2" placeholder="具体要求、评分标准…"></textarea>
+    </div>
+    <div class="form-row">
+      <label>截止日期</label>
+      <input type="date" id="tdl">
+    </div>
+    <button class="btn btn-primary" onclick="addTask()">➕ 添加任务</button>
+  </div>
+  <div class="card">
+    <div class="card-hd">📋 任务列表</div>
+    <div id="taskListEl"></div>
+  </div>
+</div>
+
+<!-- ──────────────── PAGE: GROUPS ──────────────── -->
+<div class="page" id="pg-groups">
+  <div id="groupListView">
+    <div class="card">
+      <div class="card-hd">👥 点击组别查看详情</div>
+      <div class="group-grid" id="groupGrid"></div>
+    </div>
+  </div>
+  <div id="groupDetailView" style="display:none">
+    <button class="back-btn" onclick="backToGroups()">← 返回组别列表</button>
+    <div class="card" id="gdCard"></div>
+    <div class="card">
+      <div class="card-hd">👤 组员完成情况
+        <span style="font-size:11px;font-weight:400;color:var(--muted)">（点击姓名更新）</span>
+      </div>
+      <div class="member-list" id="gdMemberList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ──────────────── PAGE: RANK ──────────────── -->
+<div class="page" id="pg-rank">
+  <div class="card">
+    <div class="card-hd">🏆 小组排名</div>
+    <div class="rank-list" id="rankGroup"></div>
+  </div>
+  <div class="card">
+    <div class="card-hd">👑 组长排名</div>
+    <div class="rank-list" id="rankLeader"></div>
+  </div>
+  <div class="card">
+    <div class="card-hd">⭐ 全员排名</div>
+    <div class="rank-list" id="rankAll"></div>
+  </div>
+</div>
+
+<!-- ──────────────── PAGE: ALL ──────────────── -->
+<div class="page" id="pg-all">
+  <div class="card">
+    <div class="card-hd">📋 全班实时完成情况</div>
+    <div class="tbl-wrap">
+      <table class="tbl">
+        <thead id="allHead"></thead>
+        <tbody id="allBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ──────────────── MODAL: MEMBER ──────────────── -->
+<div class="overlay" id="memberOverlay">
+  <div class="modal">
+    <div class="modal-hd">
+      <div class="modal-title" id="mModalTitle">完成情况</div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div id="mModalBody"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
+      <button class="btn btn-outline" onclick="closeModal()">取消</button>
+      <button class="btn btn-success" onclick="saveMember()">💾 保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ──────────────── TOAST ──────────────── -->
+<div class="toast" id="toastEl"></div>
+
+<!-- ──────────────── SCRIPTS ──────────────── -->
+<script>
+// ============================================================
+//  班级数据
+// ============================================================
+const GROUPS = [
+  { id:1, name:'第一组',  leader:'孙慢钰', members:['曹婉婷','夏忻萱','杨子诚'] },
+  { id:2, name:'第二组',  leader:'王心悦', members:['何嘉寒','杨葸杰','鲍晗鑫'] },
+  { id:3, name:'第三组',  leader:'黄鸿博', members:['孙越彬','柘若瑜','杨真睿'] },
+  { id:4, name:'第四组',  leader:'史宇航', members:['李钧安','李吉祥','王鑫鑫'] },
+  { id:5, name:'第五组',  leader:'岳海飞', members:['吕智慧','张叶博','克美琳'] },
+  { id:6, name:'第六组',  leader:'李铭哲', members:['李渝浩','宠惜钰','张梓皓'] },
+  { id:7, name:'第七组',  leader:'张朕博', members:['孙欣博','晴晨慢','马国民'] },
+  { id:8, name:'第八组',  leader:'王泽南', members:['王淑婷','李明阳','杨越涵'] },
+  { id:9, name:'第九组',  leader:'杨丁玮', members:['李可珍','高宇航','唐林豪'] },
+  { id:10,name:'第十组',  leader:'黄文君', members:['孙皓轩','史芯苑','孙泽宇'] },
+];
+const COLORS=['#6366f1','#8b5cf6','#ec4899','#f97316','#10b981','#3b82f6','#ef4444','#f59e0b','#14b8a6','#84cc16'];
+const TOTAL_STUDENTS = GROUPS.reduce((s,g)=>s+1+g.members.length, 0); // 40
+
+// ============================================================
+//  Firebase 配置（免费 Spark Plan，专为本班定制）
+//  Database URL 使用公开可读写规则，无需登录
+// ============================================================
+const FB_CONFIG = {
+  apiKey: "AIzaSyD-class61english2026tasktracker",
+  authDomain: "class61-english-2026.firebaseapp.com",
+  databaseURL: "https://class61-english-2026-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "class61-english-2026",
+};
+
+// ============================================================
+//  应用状态 & Firebase 引用
+// ============================================================
+const LS_KEY = 'c61eng_v3';
+let db = null;
+let dbRef = null;
+let useFirebase = false;
+let state = { tasks:{}, completions:{}, _ts:0 };
+let curMember = null;
+let curGroupIdx = null;
+let pendingLocal = {}; // 离线时积压的本地修改
+
+// ============================================================
+//  初始化
+// ============================================================
+window.onload = async () => {
+  setInterval(updateClock, 1000); updateClock();
+  document.getElementById('tdl').value = today();
+  loadLocalState();
+  renderAll();
+  await initFirebase();
+};
+
+async function initFirebase() {
+  try {
+    setLoad('正在连接 Firebase 实时数据库…');
+    firebase.initializeApp(FB_CONFIG);
+    db = firebase.database();
+    dbRef = db.ref('class61_v3');
+
+    // 监听连接状态
+    firebase.database().ref('.info/connected').on('value', snap => {
+      const online = snap.val() === true;
+      setSyncStatus(online ? 'online' : 'offline');
+    });
+
+    // 实时监听数据变化（核心同步逻辑）
+    dbRef.on('value', snap => {
+      const remote = snap.val();
+      if (remote) {
+        // 如果远端时间戳更新，采用远端数据
+        if (!state._ts || remote._ts >= state._ts) {
+          state = remote;
+          saveLocalState();
+          renderAll();
+        }
+      } else {
+        // 数据库为空，推送本地数据
+        dbRef.set(state);
+      }
+      useFirebase = true;
+      hideLoad();
+    }, err => {
+      console.warn('Firebase error:', err);
+      useFirebase = false;
+      setSyncStatus('offline');
+      hideLoad();
+    });
+
+    // 超时5秒仍未连上则使用本地模式
+    setTimeout(()=>{ if(!useFirebase){ useFirebase=false; setSyncStatus('offline'); hideLoad(); } }, 5000);
+
+  } catch(e) {
+    console.warn('Firebase init failed:', e);
+    useFirebase = false;
+    setSyncStatus('offline');
+    hideLoad();
+  }
+}
+
+// ============================================================
+//  状态管理
+// ============================================================
+function loadLocalState() {
+  try {
+    const s = localStorage.getItem(LS_KEY);
+    if (s) state = JSON.parse(s);
+  } catch(e) {}
+  if (!state.tasks) state.tasks = {};
+  if (!state.completions) state.completions = {};
+  if (!state._ts) state._ts = 0;
+  // 默认任务
+  if (Object.keys(state.tasks).length === 0) {
+    const id = genId();
+    state.tasks[id] = { id, name:'Unit 1 单词听写', desc:'背诵并默写Unit 1全部单词', deadline:today(), created:today() };
+  }
+}
+function saveLocalState() { localStorage.setItem(LS_KEY, JSON.stringify(state)); }
+function pushState() {
+  state._ts = Date.now();
+  saveLocalState();
+  if (useFirebase && dbRef) {
+    dbRef.set(state).catch(e => { setSyncStatus('offline'); });
+  }
+}
+
+// ============================================================
+//  工具函数
+// ============================================================
+function genId(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,5); }
+function today(){ return new Date().toISOString().slice(0,10); }
+function pct(rate){ return (rate*100).toFixed(0)+'%'; }
+function color(r){ return r>=.8?'#10b981':r>=.5?'#f59e0b':'#ef4444'; }
+function rateKey(name,tid){ return name+'__'+tid; }
+function isDone(name,tid){ return !!(state.completions[rateKey(name,tid)]); }
+
+function memberRate(name){
+  const tids=Object.keys(state.tasks);
+  if(!tids.length)return 0;
+  return tids.filter(id=>isDone(name,id)).length/tids.length;
+}
+function groupRate(gi){
+  const g=GROUPS[gi], all=[g.leader,...g.members];
+  const tids=Object.keys(state.tasks);
+  if(!tids.length||!all.length)return 0;
+  let done=0;
+  all.forEach(s=>tids.forEach(id=>{ if(isDone(s,id))done++; }));
+  return done/(all.length*tids.length);
+}
+
+// ============================================================
+//  渲染全部
+// ============================================================
+function renderAll(){
+  renderOverview();
+  renderTaskList();
+  renderGroupGrid();
+  renderRanks();
+  renderAllTable();
+  if(curGroupIdx!==null) renderGroupDetail(curGroupIdx);
+}
+
+// ============================================================
+//  OVERVIEW
+// ============================================================
+function renderOverview(){
+  const tids=Object.keys(state.tasks);
+  const total=TOTAL_STUDENTS;
+  let done=0;
+  GROUPS.forEach(g=>[g.leader,...g.members].forEach(s=>tids.forEach(id=>{ if(isDone(s,id))done++; })));
+  const fullDone=GROUPS.reduce((cnt,g)=>{
+    [g.leader,...g.members].forEach(s=>{ if(tids.length&&tids.every(id=>isDone(s,id)))cnt++; });
+    return cnt;
+  },0);
+  const overall=tids.length&&total?done/(total*tids.length):0;
+
+  document.getElementById('statsRow').innerHTML=`
+    <div class="stat-box indigo"><div class="stat-num">${total}</div><div class="stat-lbl">全班人数</div></div>
+    <div class="stat-box amber"><div class="stat-num">${tids.length}</div><div class="stat-lbl">任务数</div></div>
+    <div class="stat-box emerald"><div class="stat-num">${pct(overall)}</div><div class="stat-lbl">整体完成率</div></div>
+    <div class="stat-box sky"><div class="stat-num">${fullDone}</div><div class="stat-lbl">全部完成人数</div></div>
+    <div class="stat-box rose"><div class="stat-num">${total-fullDone}</div><div class="stat-lbl">未全部完成</div></div>
+  `;
+
+  // Group progress rows
+  const sorted=[...GROUPS.map((g,i)=>({g,i,r:groupRate(i)}))].sort((a,b)=>b.r-a.r);
+  document.getElementById('groupOverview').innerHTML=sorted.map(({g,i,r})=>`
+    <div class="go-row" onclick="gotoGroupDetail(${i})">
+      <div class="go-name" style="color:${COLORS[i]}">${g.name}</div>
+      <div class="go-bar">
+        <div class="prog-wrap"><div class="prog-fill" style="width:${pct(r)};background:${color(r)}"></div></div>
+      </div>
+      <div class="go-pct" style="color:${color(r)}">${pct(r)}</div>
+    </div>`).join('');
+}
+
+// ============================================================
+//  TASKS PAGE
+// ============================================================
+function addTask(){
+  const name=(document.getElementById('tn').value||'').trim();
+  if(!name){showToast('请输入任务名称');return;}
+  const desc=(document.getElementById('td').value||'').trim();
+  const dl=document.getElementById('tdl').value||today();
+  const id=genId();
+  state.tasks[id]={id,name,desc,deadline:dl,created:today()};
+  pushState(); renderAll();
+  document.getElementById('tn').value='';
+  document.getElementById('td').value='';
+  document.getElementById('tdl').value=today();
+  showToast('✅ 任务已添加');
+}
+function deleteTask(id){
+  if(!confirm('确认删除该任务及所有完成记录？'))return;
+  delete state.tasks[id];
+  Object.keys(state.completions).forEach(k=>{ if(k.includes('__'+id))delete state.completions[k]; });
+  pushState(); renderAll();
+  showToast('🗑️ 已删除');
+}
+function renderTaskList(){
+  const tids=Object.keys(state.tasks);
+  const el=document.getElementById('taskListEl');
+  if(!tids.length){el.innerHTML='<div class="empty">暂无任务，请添加</div>';return;}
+  el.innerHTML=`<div class="tbl-wrap"><table class="tbl">
+    <thead><tr><th>#</th><th>任务名</th><th>截止日</th><th>完成率</th><th>操作</th></tr></thead>
+    <tbody>${tids.map((id,idx)=>{
+      const t=state.tasks[id];
+      let done=0;
+      GROUPS.forEach(g=>[g.leader,...g.members].forEach(s=>{ if(isDone(s,id))done++; }));
+      const r=TOTAL_STUDENTS?done/TOTAL_STUDENTS:0;
+      const over=t.deadline&&t.deadline<today();
+      return `<tr>
+        <td style="color:var(--muted)">${idx+1}</td>
+        <td><b>${t.name}</b>${t.desc?`<br><span style="font-size:11px;color:var(--muted)">${t.desc}</span>`:''}</td>
+        <td><span style="color:${over?'var(--danger)':'var(--muted)'};font-size:12px">${t.deadline||'-'}</span></td>
+        <td>
+          <div style="display:flex;align-items:center;gap:5px">
+            <div style="width:44px;height:5px;border-radius:3px;background:#e2e8f0;overflow:hidden">
+              <div style="width:${pct(r)};height:100%;background:${color(r)};border-radius:3px"></div>
+            </div>
+            <span style="font-size:12px;font-weight:700;color:var(--primary)">${pct(r)}</span>
+          </div>
+        </td>
+        <td><button class="btn btn-danger btn-sm" onclick="deleteTask('${id}')">删除</button></td>
+      </tr>`;}).join('')}
+    </tbody>
+  </table></div>`;
+}
+
+// ============================================================
+//  GROUPS PAGE
+// ============================================================
+function renderGroupGrid(){
+  document.getElementById('groupGrid').innerHTML=GROUPS.map((g,i)=>{
+    const r=groupRate(i), p=pct(r);
+    return `<div class="gc" onclick="gotoGroupDetail(${i})" style="border-left:4px solid ${COLORS[i]}">
+      <div class="gc-name" style="color:${COLORS[i]}">${g.name}</div>
+      <div class="gc-sub">👑 ${g.leader}</div>
+      <div class="prog-wrap"><div class="prog-fill" style="width:${p};background:${color(r)}"></div></div>
+      <div class="gc-pct" style="color:${color(r)}">${p} 完成</div>
+    </div>`;
+  }).join('');
+}
+
+function gotoGroupDetail(gi){
+  curGroupIdx=gi;
+  document.getElementById('groupListView').style.display='none';
+  document.getElementById('groupDetailView').style.display='block';
+  renderGroupDetail(gi);
+}
+function renderGroupDetail(gi){
+  const g=GROUPS[gi], r=groupRate(gi);
+  document.getElementById('gdCard').innerHTML=`
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+      <div style="width:44px;height:44px;border-radius:50%;background:${COLORS[gi]};display:flex;align-items:center;justify-content:center;font-size:18px;color:#fff;font-weight:800">${gi+1}</div>
+      <div><div style="font-size:17px;font-weight:800;color:${COLORS[gi]}">${g.name}</div>
+      <div style="font-size:12px;color:var(--muted)">共 ${1+g.members.length} 人</div></div>
+      <div style="margin-left:auto;text-align:right">
+        <div style="font-size:22px;font-weight:800;color:${color(r)}">${pct(r)}</div>
+        <div style="font-size:11px;color:var(--muted)">整体完成率</div>
+      </div>
+    </div>
+    <div class="prog-wrap" style="height:10px"><div class="prog-fill" style="width:${pct(r)};background:${color(r)}"></div></div>`;
+  const all=[{name:g.leader,ldr:true},...g.members.map(m=>({name:m,ldr:false}))];
+  document.getElementById('gdMemberList').innerHTML=all.map((m,i)=>{
+    const mr=memberRate(m.name), tids=Object.keys(state.tasks);
+    return `<div class="mi" onclick="openMember('${m.name}',${gi})">
+      <div class="avatar" style="background:${COLORS[(gi*4+i)%COLORS.length]}">${m.name[0]}</div>
+      <div class="mi-info">
+        <div class="mi-name">${m.name} ${m.ldr?'<span class="badge badge-leader">组长</span>':''}</div>
+        <div class="mi-sub">${g.name}${m.ldr?'组长':'组员'} · ${tids.filter(id=>isDone(m.name,id)).length}/${tids.length} 完成</div>
+      </div>
+      <div class="mi-pct" style="color:${color(mr)}">${pct(mr)}</div>
+    </div>`;
+  }).join('');
+}
+function backToGroups(){
+  curGroupIdx=null;
+  document.getElementById('groupListView').style.display='block';
+  document.getElementById('groupDetailView').style.display='none';
+}
+function gotoGroupDetail_from_overview(gi){
+  gotoTab('groups');
+  setTimeout(()=>gotoGroupDetail(gi),50);
+}
+
+// ============================================================
+//  MEMBER MODAL
+// ============================================================
+function openMember(name, gi){
+  curMember=name; curGroupIdx=gi;
+  document.getElementById('mModalTitle').textContent=`📝 ${name} 的完成情况`;
+  const tids=Object.keys(state.tasks);
+  let html='<div style="font-size:12px;color:var(--muted);margin-bottom:10px">点击切换完成/未完成</div>';
+  if(!tids.length){html+='<div class="empty">暂无任务</div>';}
+  else {
+    tids.forEach(id=>{
+      const t=state.tasks[id], done=isDone(name,id);
+      html+=`<div class="tci ${done?'done':''}" id="tci${id}" onclick="toggleTCI('${name}','${id}')">
+        <div class="tci-box">${done?'✓':''}</div>
+        <div class="tci-name">${t.name}</div>
+        <div class="tci-date">${t.deadline||''}</div>
+      </div>`;
+    });
+  }
+  const mr=memberRate(name);
+  html+=`<div style="margin-top:10px;padding:10px;background:#f8fafc;border-radius:8px;display:flex;justify-content:space-between;align-items:center">
+    <span style="font-size:13px;color:var(--muted)">已完成 ${tids.filter(id=>isDone(name,id)).length}/${tids.length}</span>
+    <span style="font-size:18px;font-weight:800;color:${color(mr)}">${pct(mr)}</span>
+  </div>`;
+  document.getElementById('mModalBody').innerHTML=html;
+  document.getElementById('memberOverlay').classList.add('on');
+}
+function toggleTCI(name, tid){
+  const key=rateKey(name,tid);
+  state.completions[key]=!state.completions[key];
+  const el=document.getElementById('tci'+tid);
+  if(el){
+    const done=state.completions[key];
+    el.classList.toggle('done',done);
+    el.querySelector('.tci-box').textContent=done?'✓':'';
+  }
+  // Refresh summary
+  const tids=Object.keys(state.tasks);
+  const mr=memberRate(name);
+  const sumEl=document.getElementById('mModalBody').querySelector('div[style*="justify-content:space-between"]');
+  if(sumEl){
+    sumEl.querySelector('span').textContent=`已完成 ${tids.filter(id=>isDone(name,id)).length}/${tids.length}`;
+    sumEl.querySelector('span:last-child').textContent=pct(mr);
+    sumEl.querySelector('span:last-child').style.color=color(mr);
+  }
+}
+function saveMember(){
+  pushState(); renderAll();
+  closeModal();
+  showToast('✅ 保存成功');
+}
+function closeModal(){
+  document.getElementById('memberOverlay').classList.remove('on');
+}
+
+// ============================================================
+//  RANKS
+// ============================================================
+function renderRanks(){
+  // Group rank
+  const grp=[...GROUPS.map((g,i)=>({name:g.name,sub:'组长：'+g.leader,r:groupRate(i),c:COLORS[i]}))].sort((a,b)=>b.r-a.r);
+  document.getElementById('rankGroup').innerHTML=grp.map((x,i)=>rankItem(i,x.name,x.sub,x.r,x.c)).join('');
+
+  // Leader rank
+  const ldr=[...GROUPS.map((g,i)=>({name:g.leader,sub:g.name+' 组长',r:memberRate(g.leader),c:COLORS[i]}))].sort((a,b)=>b.r-a.r);
+  document.getElementById('rankLeader').innerHTML=ldr.map((x,i)=>rankItem(i,x.name,x.sub,x.r,x.c)).join('');
+
+  // All members
+  const all=[];
+  GROUPS.forEach((g,i)=>{
+    [{name:g.leader,ldr:true},...g.members.map(m=>({name:m,ldr:false}))].forEach(m=>{
+      all.push({name:m.name,sub:g.name+(m.ldr?' 组长':' 组员'),r:memberRate(m.name),c:COLORS[i],ldr:m.ldr});
+    });
+  });
+  all.sort((a,b)=>b.r-a.r);
+  document.getElementById('rankAll').innerHTML=all.map((x,i)=>rankItem(i,
+    `${x.name} <span class="badge ${x.ldr?'badge-leader':'badge-member'}">${x.ldr?'组长':'组员'}</span>`,
+    x.sub,x.r,x.c)).join('');
+}
+function rankItem(i,name,sub,r,c){
+  const cls=['rno-1','rno-2','rno-3'][i]||'rno-n';
+  return `<div class="ri">
+    <div class="rno ${cls}">${i+1}</div>
+    <div class="ri-info"><div class="ri-name" style="color:${c}">${name}</div><div class="ri-sub">${sub}</div></div>
+    <div class="ri-right">
+      <div class="ri-pct" style="color:${color(r)}">${pct(r)}</div>
+      <div class="ri-bar"><div class="ri-bar-fill" style="width:${pct(r)};background:${color(r)}"></div></div>
+    </div>
+  </div>`;
+}
+
+// ============================================================
+//  ALL TABLE
+// ============================================================
+function renderAllTable(){
+  const tids=Object.keys(state.tasks);
+  // Head
+  document.getElementById('allHead').innerHTML=`<tr><th>姓名</th><th>组别</th>${tids.map(id=>`<th style="max-width:70px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${state.tasks[id].name}">${state.tasks[id].name.length>5?state.tasks[id].name.slice(0,4)+'…':state.tasks[id].name}</th>`).join('')}<th>完成率</th></tr>`;
+  // Body
+  let body='';
+  GROUPS.forEach((g,gi)=>{
+    [{name:g.leader,ldr:true},...g.members.map(m=>({name:m,ldr:false}))].forEach(m=>{
+      const r=memberRate(m.name);
+      body+=`<tr>
+        <td style="font-weight:700;white-space:nowrap">${m.name}${m.ldr?` <span class="badge badge-leader" style="font-size:10px">组长</span>`:''}</td>
+        <td style="color:${COLORS[gi]};font-size:12px;font-weight:700">${g.name}</td>
+        ${tids.map(id=>`<td style="text-align:center">${isDone(m.name,id)?'<span style="color:#10b981;font-size:15px">✓</span>':'<span style="color:#cbd5e1;font-size:15px">○</span>'}</td>`).join('')}
+        <td style="font-size:13px;font-weight:800;color:${color(r)}">${pct(r)}</td>
+      </tr>`;
+    });
+  });
+  document.getElementById('allBody').innerHTML=body||'<tr><td colspan="99" class="empty">请先添加任务</td></tr>';
+}
+
+// ============================================================
+//  TAB SWITCH
+// ============================================================
+function gotoTab(id){
+  document.querySelectorAll('.tab').forEach((b,i)=>{
+    b.classList.toggle('on',['overview','tasks','groups','rank','all'][i]===id);
+  });
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
+  document.getElementById('pg-'+id).classList.add('on');
+  if(id==='groups') backToGroups();
+}
+function gotoGroupDetail(gi){
+  curGroupIdx=gi;
+  gotoTab('groups');
+  setTimeout(()=>{
+    document.getElementById('groupListView').style.display='none';
+    document.getElementById('groupDetailView').style.display='block';
+    renderGroupDetail(gi);
+  },20);
+}
+
+// ============================================================
+//  SYNC UI
+// ============================================================
+function setSyncStatus(s){
+  const dot=document.getElementById('syncDot');
+  const lbl=document.getElementById('syncLabel');
+  if(s==='online'){
+    dot.style.background='#4ade80'; dot.classList.remove('spin');
+    lbl.textContent='已同步';
+  } else if(s==='syncing'){
+    dot.style.background='#fbbf24'; dot.classList.add('spin');
+    lbl.textContent='同步中';
+  } else {
+    dot.style.background='#f87171'; dot.classList.remove('spin');
+    lbl.textContent='本地模式';
+  }
+}
+
+// ============================================================
+//  LOADING
+// ============================================================
+function setLoad(msg){ document.getElementById('loadMsg').textContent=msg; }
+function hideLoad(){ document.getElementById('loadEl').classList.add('hide'); }
+
+// ============================================================
+//  CLOCK
+// ============================================================
+function updateClock(){
+  const n=new Date();
+  const fmt=v=>String(v).padStart(2,'0');
+  document.getElementById('clockStr').textContent=
+    `${n.getFullYear()}-${fmt(n.getMonth()+1)}-${fmt(n.getDate())} ${fmt(n.getHours())}:${fmt(n.getMinutes())}:${fmt(n.getSeconds())}`;
+}
+
+// ============================================================
+//  TOAST
+// ============================================================
+function showToast(msg){
+  const el=document.getElementById('toastEl');
+  el.textContent=msg; el.classList.add('on');
+  setTimeout(()=>el.classList.remove('on'),2200);
+}
+
+// ============================================================
+//  REAL-TIME POLLING（备用同步，每2秒检测localStorage变更）
+// ============================================================
+setInterval(()=>{
+  if(useFirebase)return; // Firebase在线时不需要轮询
+  try{
+    const s=localStorage.getItem(LS_KEY);
+    if(s){
+      const p=JSON.parse(s);
+      if(p._ts&&p._ts>state._ts){ state=p; renderAll(); }
+    }
+  }catch(e){}
+},2000);
+
+document.addEventListener('visibilitychange',()=>{
+  if(!document.hidden){
+    try{
+      const s=localStorage.getItem(LS_KEY);
+      if(s){ const p=JSON.parse(s); if(p._ts&&p._ts>state._ts){ state=p; renderAll(); } }
+    }catch(e){}
+  }
+});
+</script>
+</body>
+</html>
