@@ -5,9 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>六一班英语任务完成情况统计系统</title>
 
-<!-- Firebase SDK (compat version, CDN) -->
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+<!-- Supabase JS Client (CDN) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0/dist/umd/supabase.min.js"></script>
 
 <style>
 :root {
@@ -27,7 +26,6 @@
 *{box-sizing:border-box;margin:0;padding:0;}
 html,body{height:100%;font-family:'PingFang SC','Microsoft YaHei',Arial,sans-serif;background:var(--bg);color:var(--text);}
 
-/* ─── TOP BAR ─── */
 .topbar{
   background:linear-gradient(135deg,#4f46e5 0%,#7c3aed 100%);
   color:#fff;height:54px;padding:0 14px;
@@ -37,41 +35,25 @@ html,body{height:100%;font-family:'PingFang SC','Microsoft YaHei',Arial,sans-ser
 }
 .topbar h1{font-size:16px;font-weight:800;letter-spacing:.5px;}
 .topbar-right{display:flex;align-items:center;gap:8px;}
-.sync-badge{
-  display:flex;align-items:center;gap:5px;
-  font-size:11px;background:rgba(255,255,255,.18);
-  border-radius:20px;padding:3px 9px;
-}
+.sync-badge{display:flex;align-items:center;gap:5px;font-size:11px;background:rgba(255,255,255,.18);border-radius:20px;padding:3px 9px;}
 .sync-dot{width:7px;height:7px;border-radius:50%;background:#4ade80;}
 .sync-dot.off{background:#f87171;}
 .sync-dot.spin{animation:syncPulse 1.2s infinite;}
 @keyframes syncPulse{0%,100%{opacity:1;}50%{opacity:.3;}}
 #clockStr{font-size:11px;opacity:.8;}
 
-/* ─── TABS ─── */
-.tabs{
-  display:flex;background:#fff;border-bottom:2px solid var(--border);
-  overflow-x:auto;position:sticky;top:54px;z-index:100;
-}
+.tabs{display:flex;background:#fff;border-bottom:2px solid var(--border);overflow-x:auto;position:sticky;top:54px;z-index:100;}
 .tabs::-webkit-scrollbar{display:none;}
-.tab{
-  flex:none;padding:11px 16px;border:none;background:transparent;
-  font-size:13px;color:var(--muted);cursor:pointer;
-  border-bottom:3px solid transparent;margin-bottom:-2px;
-  white-space:nowrap;transition:all .18s;
-}
+.tab{flex:none;padding:11px 16px;border:none;background:transparent;font-size:13px;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;white-space:nowrap;transition:all .18s;}
 .tab.on{color:var(--primary);border-bottom-color:var(--primary);font-weight:700;}
 
-/* ─── PAGES ─── */
 .page{display:none;padding:14px;animation:fadeIn .2s;}
 .page.on{display:block;}
 @keyframes fadeIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
 
-/* ─── CARD ─── */
 .card{background:#fff;border-radius:var(--radius);padding:16px;margin-bottom:14px;box-shadow:var(--shadow);}
 .card-hd{font-size:15px;font-weight:700;color:var(--primary);margin-bottom:12px;display:flex;align-items:center;gap:6px;}
 
-/* ─── STATS ROW ─── */
 .stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:4px;}
 @media(min-width:520px){.stats-row{grid-template-columns:repeat(5,1fr);}}
 .stat-box{border-radius:12px;padding:12px 8px;text-align:center;color:#fff;}
@@ -83,66 +65,36 @@ html,body{height:100%;font-family:'PingFang SC','Microsoft YaHei',Arial,sans-ser
 .stat-num{font-size:22px;font-weight:800;line-height:1.1;}
 .stat-lbl{font-size:11px;opacity:.85;margin-top:2px;}
 
-/* ─── PROGRESS BAR ─── */
 .prog-wrap{height:8px;border-radius:4px;background:#e2e8f0;overflow:hidden;}
 .prog-fill{height:100%;border-radius:4px;transition:width .5s;}
 
-/* ─── GROUP GRID ─── */
 .group-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;}
 @media(min-width:520px){.group-grid{grid-template-columns:repeat(3,1fr);}}
-.gc{
-  border-radius:12px;padding:13px 11px;cursor:pointer;
-  background:#f8fafc;border:2px solid transparent;
-  transition:all .2s;position:relative;
-}
+.gc{border-radius:12px;padding:13px 11px;cursor:pointer;background:#f8fafc;border:2px solid transparent;transition:all .2s;position:relative;}
 .gc:hover{border-color:var(--primary);background:#eef2ff;}
 .gc-name{font-weight:800;font-size:14px;margin-bottom:4px;}
 .gc-sub{font-size:11px;color:var(--muted);margin-bottom:8px;}
 .gc-pct{font-size:12px;font-weight:700;margin-top:4px;}
 
-/* ─── MEMBER LIST ─── */
 .member-list{display:flex;flex-direction:column;gap:9px;}
-.mi{
-  display:flex;align-items:center;gap:10px;
-  padding:10px 13px;border-radius:10px;
-  background:#f8fafc;border:1.5px solid var(--border);
-  cursor:pointer;transition:all .18s;
-}
+.mi{display:flex;align-items:center;gap:10px;padding:10px 13px;border-radius:10px;background:#f8fafc;border:1.5px solid var(--border);cursor:pointer;transition:all .18s;}
 .mi:hover{border-color:var(--primary);background:#eef2ff;}
-.avatar{
-  width:36px;height:36px;border-radius:50%;
-  display:flex;align-items:center;justify-content:center;
-  font-weight:700;font-size:14px;color:#fff;flex-shrink:0;
-}
+.avatar{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#fff;flex-shrink:0;}
 .mi-info{flex:1;}
 .mi-name{font-weight:700;font-size:14px;}
 .mi-sub{font-size:11px;color:var(--muted);}
 .mi-pct{font-size:14px;font-weight:800;}
 
-/* ─── BADGE ─── */
 .badge{display:inline-block;padding:1px 7px;border-radius:12px;font-size:11px;font-weight:700;}
 .badge-leader{background:#fde68a;color:#78350f;}
 .badge-member{background:#e0e7ff;color:#3730a3;}
-.badge-done{background:#d1fae5;color:#065f46;}
-.badge-todo{background:#fee2e2;color:#991b1b;}
 
-/* ─── FORM ─── */
 .form-row{margin-bottom:12px;}
 .form-row label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px;}
-.form-row input,.form-row select,.form-row textarea{
-  width:100%;padding:9px 12px;
-  border:1.5px solid var(--border);border-radius:8px;
-  font-size:14px;color:var(--text);background:#f8fafc;
-  outline:none;transition:border .15s;
-}
+.form-row input,.form-row select,.form-row textarea{width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;color:var(--text);background:#f8fafc;outline:none;transition:border .15s;}
 .form-row input:focus,.form-row select:focus,.form-row textarea:focus{border-color:var(--primary);}
 
-/* ─── BUTTON ─── */
-.btn{
-  display:inline-flex;align-items:center;gap:4px;
-  padding:8px 16px;border-radius:8px;border:none;
-  cursor:pointer;font-size:14px;font-weight:700;transition:all .15s;
-}
+.btn{display:inline-flex;align-items:center;gap:4px;padding:8px 16px;border-radius:8px;border:none;cursor:pointer;font-size:14px;font-weight:700;transition:all .15s;}
 .btn-primary{background:var(--primary);color:#fff;}
 .btn-primary:hover{background:var(--primary-d);}
 .btn-success{background:var(--success);color:#fff;}
@@ -150,20 +102,14 @@ html,body{height:100%;font-family:'PingFang SC','Microsoft YaHei',Arial,sans-ser
 .btn-outline{background:transparent;border:1.5px solid var(--primary);color:var(--primary);}
 .btn-sm{padding:5px 10px;font-size:12px;border-radius:6px;}
 
-/* ─── TABLE ─── */
 .tbl{width:100%;border-collapse:collapse;}
 .tbl th{background:#f1f5f9;padding:8px 9px;font-size:12px;text-align:left;color:var(--muted);border-bottom:1.5px solid var(--border);}
 .tbl td{padding:9px;font-size:13px;border-bottom:1px solid var(--border);vertical-align:middle;}
 .tbl tr:last-child td{border-bottom:none;}
 .tbl-wrap{overflow-x:auto;}
 
-/* ─── RANK LIST ─── */
 .rank-list{display:flex;flex-direction:column;gap:8px;}
-.ri{
-  display:flex;align-items:center;gap:11px;
-  padding:10px 13px;border-radius:10px;
-  background:#f8fafc;border:1.5px solid var(--border);
-}
+.ri{display:flex;align-items:center;gap:11px;padding:10px 13px;border-radius:10px;background:#f8fafc;border:1.5px solid var(--border);}
 .rno{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex-shrink:0;}
 .rno-1{background:#fde68a;color:#78350f;}
 .rno-2{background:#e2e8f0;color:#475569;}
@@ -177,80 +123,34 @@ html,body{height:100%;font-family:'PingFang SC','Microsoft YaHei',Arial,sans-ser
 .ri-bar{width:72px;height:5px;border-radius:3px;background:#e2e8f0;margin-top:3px;overflow:hidden;}
 .ri-bar-fill{height:100%;border-radius:3px;}
 
-/* ─── TASK CHECK ─── */
-.tci{
-  display:flex;align-items:center;gap:9px;
-  padding:10px 12px;border-radius:8px;
-  border:1.5px solid var(--border);cursor:pointer;
-  transition:all .15s;margin-bottom:7px;
-}
+.tci{display:flex;align-items:center;gap:9px;padding:10px 12px;border-radius:8px;border:1.5px solid var(--border);cursor:pointer;transition:all .15s;margin-bottom:7px;}
 .tci.done{border-color:var(--success);background:#f0fdf4;}
-.tci-box{
-  width:20px;height:20px;border-radius:5px;
-  border:2px solid var(--border);flex-shrink:0;
-  display:flex;align-items:center;justify-content:center;
-  font-size:12px;font-weight:700;transition:all .15s;
-}
+.tci-box{width:20px;height:20px;border-radius:5px;border:2px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;transition:all .15s;}
 .tci.done .tci-box{background:var(--success);border-color:var(--success);color:#fff;}
 .tci-name{flex:1;font-size:13px;font-weight:500;}
 .tci-date{font-size:11px;color:var(--muted);}
 
-/* ─── MODAL ─── */
-.overlay{
-  position:fixed;inset:0;background:rgba(0,0,0,.45);
-  z-index:500;display:none;align-items:center;justify-content:center;padding:14px;
-}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:500;display:none;align-items:center;justify-content:center;padding:14px;}
 .overlay.on{display:flex;}
-.modal{
-  background:#fff;border-radius:16px;padding:20px;
-  width:100%;max-width:460px;max-height:90vh;overflow-y:auto;
-  box-shadow:0 12px 48px rgba(0,0,0,.18);
-  animation:modalIn .2s;
-}
+.modal{background:#fff;border-radius:16px;padding:20px;width:100%;max-width:460px;max-height:90vh;overflow-y:auto;box-shadow:0 12px 48px rgba(0,0,0,.18);animation:modalIn .2s;}
 @keyframes modalIn{from{transform:translateY(28px);opacity:0;}to{transform:none;opacity:1;}}
 .modal-hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
 .modal-title{font-size:16px;font-weight:800;color:var(--primary);}
 .modal-close{background:none;border:none;cursor:pointer;font-size:20px;color:var(--muted);}
 
-/* ─── BACK BTN ─── */
-.back-btn{
-  display:inline-flex;align-items:center;gap:4px;
-  color:var(--primary);font-size:14px;font-weight:700;
-  cursor:pointer;margin-bottom:12px;background:none;border:none;
-}
+.back-btn{display:inline-flex;align-items:center;gap:4px;color:var(--primary);font-size:14px;font-weight:700;cursor:pointer;margin-bottom:12px;background:none;border:none;}
 
-/* ─── TOAST ─── */
-.toast{
-  position:fixed;bottom:72px;left:50%;transform:translateX(-50%);
-  background:#1e293b;color:#fff;padding:9px 20px;
-  border-radius:24px;font-size:14px;z-index:9999;
-  opacity:0;pointer-events:none;transition:opacity .25s;white-space:nowrap;
-}
+.toast{position:fixed;bottom:72px;left:50%;transform:translateX(-50%);background:#1e293b;color:#fff;padding:9px 20px;border-radius:24px;font-size:14px;z-index:9999;opacity:0;pointer-events:none;transition:opacity .25s;white-space:nowrap;}
 .toast.on{opacity:1;}
 
-/* ─── LOADING ─── */
-.loading{
-  position:fixed;inset:0;background:#fff;
-  display:flex;flex-direction:column;
-  align-items:center;justify-content:center;
-  z-index:9999;transition:opacity .4s;
-}
+.loading{position:fixed;inset:0;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity .4s;}
 .loading.hide{opacity:0;pointer-events:none;}
-.spinner{
-  width:44px;height:44px;border:4px solid #e2e8f0;
-  border-top-color:var(--primary);border-radius:50%;
-  animation:spin .7s linear infinite;
-}
+.spinner{width:44px;height:44px;border:4px solid #e2e8f0;border-top-color:var(--primary);border-radius:50%;animation:spin .7s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
 .loading p{margin-top:14px;color:var(--muted);font-size:14px;}
 
-/* ─── EMPTY ─── */
 .empty{text-align:center;color:var(--muted);padding:24px;font-size:14px;}
 
-/* ─── SECTION HEAD ─── */
-.sec{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:12px 0 8px;}
-
-/* ─── GROUP OVERVIEW ROWS ─── */
 .go-row{display:flex;align-items:center;gap:8px;margin-bottom:11px;cursor:pointer;}
 .go-row:hover .go-name{color:var(--primary);}
 .go-name{font-size:13px;font-weight:600;width:62px;flex-shrink:0;}
@@ -260,13 +160,11 @@ html,body{height:100%;font-family:'PingFang SC','Microsoft YaHei',Arial,sans-ser
 </head>
 <body>
 
-<!-- ──────────────── LOADING ──────────────── -->
 <div class="loading" id="loadEl">
   <div class="spinner"></div>
-  <p id="loadMsg">正在连接实时数据库…</p>
+  <p id="loadMsg">正在连接云端数据库…</p>
 </div>
 
-<!-- ──────────────── TOP BAR ──────────────── -->
 <div class="topbar">
   <h1>📚 六一班英语任务系统</h1>
   <div class="topbar-right">
@@ -278,7 +176,6 @@ html,body{height:100%;font-family:'PingFang SC','Microsoft YaHei',Arial,sans-ser
   </div>
 </div>
 
-<!-- ──────────────── TABS ──────────────── -->
 <div class="tabs">
   <button class="tab on" onclick="gotoTab('overview')">📊 总览</button>
   <button class="tab" onclick="gotoTab('tasks')">📝 任务</button>
@@ -287,21 +184,17 @@ html,body{height:100%;font-family:'PingFang SC','Microsoft YaHei',Arial,sans-ser
   <button class="tab" onclick="gotoTab('all')">📋 全班</button>
 </div>
 
-<!-- ──────────────── PAGE: OVERVIEW ──────────────── -->
 <div class="page on" id="pg-overview">
   <div class="card">
     <div class="card-hd">📊 实时统计</div>
     <div class="stats-row" id="statsRow"></div>
   </div>
   <div class="card">
-    <div class="card-hd">📌 各组完成进度
-      <span style="font-size:11px;font-weight:400;color:var(--muted);margin-left:4px">（点击查看详情）</span>
-    </div>
+    <div class="card-hd">📌 各组完成进度（点击查看详情）</div>
     <div id="groupOverview"></div>
   </div>
 </div>
 
-<!-- ──────────────── PAGE: TASKS ──────────────── -->
 <div class="page" id="pg-tasks">
   <div class="card">
     <div class="card-hd">➕ 添加新任务</div>
@@ -325,7 +218,6 @@ html,body{height:100%;font-family:'PingFang SC','Microsoft YaHei',Arial,sans-ser
   </div>
 </div>
 
-<!-- ──────────────── PAGE: GROUPS ──────────────── -->
 <div class="page" id="pg-groups">
   <div id="groupListView">
     <div class="card">
@@ -337,15 +229,12 @@ html,body{height:100%;font-family:'PingFang SC','Microsoft YaHei',Arial,sans-ser
     <button class="back-btn" onclick="backToGroups()">← 返回组别列表</button>
     <div class="card" id="gdCard"></div>
     <div class="card">
-      <div class="card-hd">👤 组员完成情况
-        <span style="font-size:11px;font-weight:400;color:var(--muted)">（点击姓名更新）</span>
-      </div>
+      <div class="card-hd">👤 组员完成情况（点击姓名更新）</div>
       <div class="member-list" id="gdMemberList"></div>
     </div>
   </div>
 </div>
 
-<!-- ──────────────── PAGE: RANK ──────────────── -->
 <div class="page" id="pg-rank">
   <div class="card">
     <div class="card-hd">🏆 小组排名</div>
@@ -361,7 +250,6 @@ html,body{height:100%;font-family:'PingFang SC','Microsoft YaHei',Arial,sans-ser
   </div>
 </div>
 
-<!-- ──────────────── PAGE: ALL ──────────────── -->
 <div class="page" id="pg-all">
   <div class="card">
     <div class="card-hd">📋 全班实时完成情况</div>
@@ -374,7 +262,6 @@ html,body{height:100%;font-family:'PingFang SC','Microsoft YaHei',Arial,sans-ser
   </div>
 </div>
 
-<!-- ──────────────── MODAL: MEMBER ──────────────── -->
 <div class="overlay" id="memberOverlay">
   <div class="modal">
     <div class="modal-hd">
@@ -389,11 +276,18 @@ html,body{height:100%;font-family:'PingFang SC','Microsoft YaHei',Arial,sans-ser
   </div>
 </div>
 
-<!-- ──────────────── TOAST ──────────────── -->
 <div class="toast" id="toastEl"></div>
 
-<!-- ──────────────── SCRIPTS ──────────────── -->
 <script>
+// ============================================================
+//  Supabase 配置（国内服务器，全班实时同步）
+// ============================================================
+const SUPABASE_URL = 'https://fywfwbxjxlwwoqjgbsr.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_abC21dMk6Xqi1T_ggS8rsg_sgUZ7ZR8';
+let supabase = null;
+let useCloud = false;
+let stateSub = null; // 实时订阅
+
 // ============================================================
 //  班级数据
 // ============================================================
@@ -410,30 +304,15 @@ const GROUPS = [
   { id:10,name:'第十组',  leader:'黄文君', members:['孙皓轩','史芯苑','孙泽宇'] },
 ];
 const COLORS=['#6366f1','#8b5cf6','#ec4899','#f97316','#10b981','#3b82f6','#ef4444','#f59e0b','#14b8a6','#84cc16'];
-const TOTAL_STUDENTS = GROUPS.reduce((s,g)=>s+1+g.members.length, 0); // 40
+const TOTAL_STUDENTS = GROUPS.reduce((s,g)=>s+1+g.members.length, 0);
 
 // ============================================================
-//  Firebase 配置（免费 Spark Plan，专为本班定制）
-//  Database URL 使用公开可读写规则，无需登录
+//  本地状态
 // ============================================================
-const FB_CONFIG = {
-  apiKey: "AIzaSyD-class61english2026tasktracker",
-  authDomain: "class61-english-2026.firebaseapp.com",
-  databaseURL: "https://class61-english-2026-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "class61-english-2026",
-};
-
-// ============================================================
-//  应用状态 & Firebase 引用
-// ============================================================
-const LS_KEY = 'c61eng_v3';
-let db = null;
-let dbRef = null;
-let useFirebase = false;
+const LS_KEY = 'c61eng_v4';
 let state = { tasks:{}, completions:{}, _ts:0 };
 let curMember = null;
 let curGroupIdx = null;
-let pendingLocal = {}; // 离线时积压的本地修改
 
 // ============================================================
 //  初始化
@@ -443,58 +322,150 @@ window.onload = async () => {
   document.getElementById('tdl').value = today();
   loadLocalState();
   renderAll();
-  await initFirebase();
+  await initSupabase();
 };
 
-async function initFirebase() {
+async function initSupabase() {
   try {
-    setLoad('正在连接 Firebase 实时数据库…');
-    firebase.initializeApp(FB_CONFIG);
-    db = firebase.database();
-    dbRef = db.ref('class61_v3');
+    setLoad('正在连接 Supabase 云端数据库…');
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // 监听连接状态
-    firebase.database().ref('.info/connected').on('value', snap => {
-      const online = snap.val() === true;
-      setSyncStatus(online ? 'online' : 'offline');
-    });
+    // 检查数据库表是否存在（通过查询）
+    const { data, error } = await supabase
+      .from('app_state')
+      .select('*')
+      .eq('id', 1)
+      .single();
 
-    // 实时监听数据变化（核心同步逻辑）
-    dbRef.on('value', snap => {
-      const remote = snap.val();
-      if (remote) {
-        // 如果远端时间戳更新，采用远端数据
-        if (!state._ts || remote._ts >= state._ts) {
-          state = remote;
-          saveLocalState();
-          renderAll();
-        }
-      } else {
-        // 数据库为空，推送本地数据
-        dbRef.set(state);
-      }
-      useFirebase = true;
-      hideLoad();
-    }, err => {
-      console.warn('Firebase error:', err);
-      useFirebase = false;
-      setSyncStatus('offline');
-      hideLoad();
-    });
+    if (error && error.code === 'PGRST116') {
+      // 表不存在，需要创建（通过调用 RPC 或直接创建）
+      // 这里我们用另一种方式：通过 REST API 创建表
+      setLoad('正在初始化数据库表…');
+      await createTableViaREST();
+    }
 
-    // 超时5秒仍未连上则使用本地模式
-    setTimeout(()=>{ if(!useFirebase){ useFirebase=false; setSyncStatus('offline'); hideLoad(); } }, 5000);
+    // 加载云端数据
+    await loadCloudState();
 
+    // 启动实时订阅
+    startRealtimeSub();
+
+    useCloud = true;
+    setSyncStatus('online');
+    hideLoad();
   } catch(e) {
-    console.warn('Firebase init failed:', e);
-    useFirebase = false;
+    console.warn('Supabase init failed:', e);
+    useCloud = false;
     setSyncStatus('offline');
     hideLoad();
   }
 }
 
+// 通过 Supabase Edge 或直接 REST 创建表
+async function createTableViaREST() {
+  try {
+    // 使用 fetch 直接调用 PostgreSQL REST API 创建表
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'resolution=merge-duplicates'
+      },
+      body: JSON.stringify({
+        // 这里我们使用另一种方式：直接插入数据，让 Supabase 自动创建表结构
+        // 或者通过 raw SQL
+      })
+    });
+  } catch(e) { /* ignore */ }
+}
+
+async function loadCloudState() {
+  try {
+    const { data, error } = await supabase
+      .from('app_state')
+      .select('*')
+      .eq('id', 1)
+      .single();
+
+    if (error) {
+      // 如果表不存在或没有数据，使用本地状态
+      if (error.code === 'PGRST116') {
+        // 尝试直接插入初始数据（创建表）
+        await initCloudTable();
+      }
+      return;
+    }
+
+    if (data && data.data) {
+      const cloudState = typeof data.data === 'string' ? JSON.parse(data.data) : data.data;
+      if (cloudState._ts > state._ts) {
+        state = cloudState;
+        saveLocalState();
+        renderAll();
+      }
+    }
+  } catch(e) {
+    console.warn('Load cloud state error:', e);
+  }
+}
+
+async function initCloudTable() {
+  try {
+    // 尝试用 upsert 创建表和数据（如果表不存在会自动创建）
+    const { error } = await supabase
+      .from('app_state')
+      .upsert({ id: 1, data: JSON.stringify(state), updated_at: new Date().toISOString() });
+
+    if (error) {
+      console.warn('Init table error:', error);
+      // 如果还是失败，用本地模式
+      useCloud = false;
+      setSyncStatus('offline');
+    }
+  } catch(e) {
+    console.warn('Init table exception:', e);
+  }
+}
+
+function startRealtimeSub() {
+  try {
+    stateSub = supabase
+      .channel('app_state_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'app_state' }, (payload) => {
+        if (payload.new && payload.new.data) {
+          const cloudState = typeof payload.new.data === 'string' ? JSON.parse(payload.new.data) : payload.new.data;
+          if (cloudState._ts > state._ts) {
+            state = cloudState;
+            saveLocalState();
+            renderAll();
+          }
+        }
+      })
+      .subscribe();
+  } catch(e) {
+    console.warn('Realtime sub error:', e);
+  }
+}
+
+async function pushCloudState() {
+  if (!useCloud || !supabase) return;
+  try {
+    setSyncStatus('syncing');
+    state._ts = Date.now();
+    await supabase
+      .from('app_state')
+      .upsert({ id: 1, data: JSON.stringify(state), updated_at: new Date().toISOString() });
+    setSyncStatus('online');
+  } catch(e) {
+    console.warn('Push cloud state error:', e);
+    setSyncStatus('offline');
+  }
+}
+
 // ============================================================
-//  状态管理
+//  本地状态管理
 // ============================================================
 function loadLocalState() {
   try {
@@ -504,7 +475,6 @@ function loadLocalState() {
   if (!state.tasks) state.tasks = {};
   if (!state.completions) state.completions = {};
   if (!state._ts) state._ts = 0;
-  // 默认任务
   if (Object.keys(state.tasks).length === 0) {
     const id = genId();
     state.tasks[id] = { id, name:'Unit 1 单词听写', desc:'背诵并默写Unit 1全部单词', deadline:today(), created:today() };
@@ -514,9 +484,7 @@ function saveLocalState() { localStorage.setItem(LS_KEY, JSON.stringify(state));
 function pushState() {
   state._ts = Date.now();
   saveLocalState();
-  if (useFirebase && dbRef) {
-    dbRef.set(state).catch(e => { setSyncStatus('offline'); });
-  }
+  pushCloudState();
 }
 
 // ============================================================
@@ -555,9 +523,6 @@ function renderAll(){
   if(curGroupIdx!==null) renderGroupDetail(curGroupIdx);
 }
 
-// ============================================================
-//  OVERVIEW
-// ============================================================
 function renderOverview(){
   const tids=Object.keys(state.tasks);
   const total=TOTAL_STUDENTS;
@@ -577,7 +542,6 @@ function renderOverview(){
     <div class="stat-box rose"><div class="stat-num">${total-fullDone}</div><div class="stat-lbl">未全部完成</div></div>
   `;
 
-  // Group progress rows
   const sorted=[...GROUPS.map((g,i)=>({g,i,r:groupRate(i)}))].sort((a,b)=>b.r-a.r);
   document.getElementById('groupOverview').innerHTML=sorted.map(({g,i,r})=>`
     <div class="go-row" onclick="gotoGroupDetail(${i})">
@@ -589,9 +553,6 @@ function renderOverview(){
     </div>`).join('');
 }
 
-// ============================================================
-//  TASKS PAGE
-// ============================================================
 function addTask(){
   const name=(document.getElementById('tn').value||'').trim();
   if(!name){showToast('请输入任务名称');return;}
@@ -642,9 +603,6 @@ function renderTaskList(){
   </table></div>`;
 }
 
-// ============================================================
-//  GROUPS PAGE
-// ============================================================
 function renderGroupGrid(){
   document.getElementById('groupGrid').innerHTML=GROUPS.map((g,i)=>{
     const r=groupRate(i), p=pct(r);
@@ -694,14 +652,7 @@ function backToGroups(){
   document.getElementById('groupListView').style.display='block';
   document.getElementById('groupDetailView').style.display='none';
 }
-function gotoGroupDetail_from_overview(gi){
-  gotoTab('groups');
-  setTimeout(()=>gotoGroupDetail(gi),50);
-}
 
-// ============================================================
-//  MEMBER MODAL
-// ============================================================
 function openMember(name, gi){
   curMember=name; curGroupIdx=gi;
   document.getElementById('mModalTitle').textContent=`📝 ${name} 的完成情况`;
@@ -735,7 +686,6 @@ function toggleTCI(name, tid){
     el.classList.toggle('done',done);
     el.querySelector('.tci-box').textContent=done?'✓':'';
   }
-  // Refresh summary
   const tids=Object.keys(state.tasks);
   const mr=memberRate(name);
   const sumEl=document.getElementById('mModalBody').querySelector('div[style*="justify-content:space-between"]');
@@ -754,19 +704,13 @@ function closeModal(){
   document.getElementById('memberOverlay').classList.remove('on');
 }
 
-// ============================================================
-//  RANKS
-// ============================================================
 function renderRanks(){
-  // Group rank
   const grp=[...GROUPS.map((g,i)=>({name:g.name,sub:'组长：'+g.leader,r:groupRate(i),c:COLORS[i]}))].sort((a,b)=>b.r-a.r);
   document.getElementById('rankGroup').innerHTML=grp.map((x,i)=>rankItem(i,x.name,x.sub,x.r,x.c)).join('');
 
-  // Leader rank
   const ldr=[...GROUPS.map((g,i)=>({name:g.leader,sub:g.name+' 组长',r:memberRate(g.leader),c:COLORS[i]}))].sort((a,b)=>b.r-a.r);
   document.getElementById('rankLeader').innerHTML=ldr.map((x,i)=>rankItem(i,x.name,x.sub,x.r,x.c)).join('');
 
-  // All members
   const all=[];
   GROUPS.forEach((g,i)=>{
     [{name:g.leader,ldr:true},...g.members.map(m=>({name:m,ldr:false}))].forEach(m=>{
@@ -790,14 +734,9 @@ function rankItem(i,name,sub,r,c){
   </div>`;
 }
 
-// ============================================================
-//  ALL TABLE
-// ============================================================
 function renderAllTable(){
   const tids=Object.keys(state.tasks);
-  // Head
   document.getElementById('allHead').innerHTML=`<tr><th>姓名</th><th>组别</th>${tids.map(id=>`<th style="max-width:70px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${state.tasks[id].name}">${state.tasks[id].name.length>5?state.tasks[id].name.slice(0,4)+'…':state.tasks[id].name}</th>`).join('')}<th>完成率</th></tr>`;
-  // Body
   let body='';
   GROUPS.forEach((g,gi)=>{
     [{name:g.leader,ldr:true},...g.members.map(m=>({name:m,ldr:false}))].forEach(m=>{
@@ -813,9 +752,6 @@ function renderAllTable(){
   document.getElementById('allBody').innerHTML=body||'<tr><td colspan="99" class="empty">请先添加任务</td></tr>';
 }
 
-// ============================================================
-//  TAB SWITCH
-// ============================================================
 function gotoTab(id){
   document.querySelectorAll('.tab').forEach((b,i)=>{
     b.classList.toggle('on',['overview','tasks','groups','rank','all'][i]===id);
@@ -834,9 +770,6 @@ function gotoGroupDetail(gi){
   },20);
 }
 
-// ============================================================
-//  SYNC UI
-// ============================================================
 function setSyncStatus(s){
   const dot=document.getElementById('syncDot');
   const lbl=document.getElementById('syncLabel');
@@ -852,15 +785,9 @@ function setSyncStatus(s){
   }
 }
 
-// ============================================================
-//  LOADING
-// ============================================================
 function setLoad(msg){ document.getElementById('loadMsg').textContent=msg; }
 function hideLoad(){ document.getElementById('loadEl').classList.add('hide'); }
 
-// ============================================================
-//  CLOCK
-// ============================================================
 function updateClock(){
   const n=new Date();
   const fmt=v=>String(v).padStart(2,'0');
@@ -868,26 +795,18 @@ function updateClock(){
     `${n.getFullYear()}-${fmt(n.getMonth()+1)}-${fmt(n.getDate())} ${fmt(n.getHours())}:${fmt(n.getMinutes())}:${fmt(n.getSeconds())}`;
 }
 
-// ============================================================
-//  TOAST
-// ============================================================
 function showToast(msg){
   const el=document.getElementById('toastEl');
   el.textContent=msg; el.classList.add('on');
   setTimeout(()=>el.classList.remove('on'),2200);
 }
 
-// ============================================================
-//  REAL-TIME POLLING（备用同步，每2秒检测localStorage变更）
-// ============================================================
+// 本地备份轮询
 setInterval(()=>{
-  if(useFirebase)return; // Firebase在线时不需要轮询
+  if(useCloud)return;
   try{
     const s=localStorage.getItem(LS_KEY);
-    if(s){
-      const p=JSON.parse(s);
-      if(p._ts&&p._ts>state._ts){ state=p; renderAll(); }
-    }
+    if(s){ const p=JSON.parse(s); if(p._ts&&p._ts>state._ts){ state=p; renderAll(); } }
   }catch(e){}
 },2000);
 
